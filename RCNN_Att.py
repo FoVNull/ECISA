@@ -64,7 +64,7 @@ class RCNN_Att_Model(ABCClassificationModel):
         # Define layers for BiLSTM
         layer_stack = [
             L.Bidirectional(L.LSTM(**config['layer_bilstm1'])),
-            # L.Conv1D(**config['conv_layer1']),
+            L.Conv1D(**config['conv_layer1']),
             L.Dropout(**config['layer_dropout'])
         ]
 
@@ -74,10 +74,10 @@ class RCNN_Att_Model(ABCClassificationModel):
         for layer in layer_stack:
             tensor = layer(tensor)
 
-        # query_value_attention_seq = L.Attention()([tensor, tensor])
-        query_value_attention_seq = L.MultiHeadAttention(
-            num_heads=2, key_dim=2, dropout=0.5
-        )(tensor, tensor)
+        query_value_attention_seq = L.Attention()([tensor, tensor])
+        # query_value_attention_seq = L.MultiHeadAttention(
+        #     num_heads=2, key_dim=2, dropout=0.5
+        # )(tensor, tensor)
 
         query_encoding = L.GlobalMaxPool1D()(tensor)
         query_value_attention = L.GlobalMaxPool1D()(query_value_attention_seq)
@@ -88,8 +88,4 @@ class RCNN_Att_Model(ABCClassificationModel):
         input_layer = L.Dropout(**config['layer_dropout_output'])(input_layer)
         tensor = L.Dense(output_dim, **config['layer_output'])(input_layer)
 
-        # use this activation layer as final activation to support multi-label classification
-        # tensor = self._activation_layer()(tensor)
-
-        # Init model
         self.tf_model = keras.Model(embed_model.inputs, tensor)

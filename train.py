@@ -4,6 +4,8 @@ import re
 from lxml import etree
 from kashgari.tasks.classification import BiLSTM_Model
 from kashgari.embeddings import BertEmbedding
+from hfbert_embedding import HFBertEmbedding
+from transformers import BertTokenizer
 import tensorflow as tf
 from sklearn.model_selection import train_test_split
 from RCNN_Att import RCNN_Att_Model
@@ -20,8 +22,7 @@ with open('./stop_words.txt', 'r', encoding='utf-8') as f:
 def cut_text(_line):
     _line = "".join(re.split("[//]*[\\\\]*@[\s\S]+:", _line))
     # _line = "".join(re.findall("[\u4e00-\u9fa5]", _line))
-    vocab_list = [word for word in jieba.lcut(_line, cut_all=False, use_paddle=True) if
-                  word not in stop_words]
+    vocab_list = [word for word in tokenizer.tokenize(_line)]
     return vocab_list
 
 
@@ -61,19 +62,22 @@ def gen_interface(pred, _num):
 
 
 if __name__ == '__main__':
-
+    tokenizer = BertTokenizer.from_pretrained('hfl_chinese_bert_hf')
     with tf.device('/gpu:3'):
         train_x, train_y = read_data('./data/SMP2019_ECISA_Train.xml')
         dev_x, dev_y = read_data('./data/SMP2019_ECISA_Dev.xml')
         dev_x, test_x, dev_y, test_y = train_test_split(dev_x, dev_y, test_size=0.5)
 
         interface_x, num = read_test()
-        embedding = BertEmbedding("chinese_L-12_H-768_A-12")
+        # embedding = BertEmbedding("./bert_chinese_wwm_L-12_H-768_A-12")
+        embedding = HFBertEmbedding("hfl_chinese_roberta_large")
+
         model = RCNN_Att_Model(embedding)
-        model.fit(train_x, train_y, dev_x, dev_y, epochs=24, batch_size=32)
+        model.fit(train_x, train_y, dev_x, dev_y, epochs=10, batch_size=64)
 
         # Evaluate the model
         model.evaluate(test_x, test_y)
 
         pred_y = model.predict(interface_x)
+        print(len(pred_y), '###')
         gen_interface(pred_y, num)
